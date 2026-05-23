@@ -26,3 +26,23 @@ TBLPROPERTIES (
 'creation.date' ='2026-05-22',
 'owner' ='data_warehouse'
 );
+CREATETABLE IF NOT EXISTS ods_credit_apply (
+apply_id BIGINT COMMENT '申请ID',
+user_id BIGINT COMMENT '用户ID',
+product_id INT COMMENT '产品ID',
+channel_id INT COMMENT '渠道ID',
+apply_amount DECIMAL(15,2) COMMENT '申请金额（元）',
+apply_term INT COMMENT '申请期限（月）',
+apply_purpose STRING COMMENT '借款用途',
+apply_time STRING COMMENT '申请时间',
+approve_status INT COMMENT '审批状态（0待审1通过2拒绝3取消）',
+approve_time STRING COMMENT '审批时间',
+approve_amount DECIMAL(15,2) COMMENT '审批金额',
+approve_rate DECIMAL(6,4) COMMENT '审批年化利率',
+reject_reason STRING COMMENT '拒绝原因',
+update_time STRING COMMENT '更新时间'
+)
+COMMENT '贷款申请表（增量追加）'
+PARTITIONED BY(dt STRING COMMENT '数据日期分区')
+STOREDAS ORC
+TBLPROPERTIES ('orc.compress' ='SNAPPY');
