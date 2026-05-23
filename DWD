@@ -1,0 +1,100 @@
+CREATEDATABASE IFNOT EXISTS dwd;
+USE dwd;
+CREATETABLE IF NOT EXISTS dwd_dim_user (
+user_id BIGINT COMMENT '用户ID',
+gender_desc STRING COMMENT '性别（男/女/未知）',
+age INT COMMENT '年龄',
+age_group STRING COMMENT '年龄段',
+education_desc STRING COMMENT '学历描述',
+marital_desc STRING COMMENT '婚姻状况描述',
+province STRING COMMENT '省份',
+city STRING COMMENT '城市',
+region STRING COMMENT '区域',
+occupation STRING COMMENT '职业',
+income_level STRING COMMENT '收入等级',
+credit_level STRING COMMENT '信用等级',
+register_date STRING COMMENT '注册日期',
+register_month STRING COMMENT '注册月份',
+update_date STRING COMMENT '最近更新日期'
+)
+COMMENT '用户维度表'
+STOREDAS ORC
+TBLPROPERTIES ('orc.compress' ='SNAPPY');--ETL：从ODS加载并清洗加工
+INSERTOVERWRITE TABLE dwd_dim_user
+SELECT
+user_id,
+CASE gender
+WHEN 1THEN '男'
+WHEN 2THEN '女'
+ELSE '未知'
+END ASgender_desc,--计算年龄
+IF(birthday ISNOT NULL ANDbirthday !='',
+DATEDIFF('${TARGET_DT}', birthday) / 365,
+NULL
+)AS age,--年龄分段
+CASE
+WHEN IF(birthday IS NOTNULL, DATEDIFF('${TARGET_DT}', birthday)/365,0)
+BETWEEN 18AND 25 THEN '18-25'
+WHEN IF(birthday IS NOTNULL, DATEDIFF('${TARGET_DT}', birthday)/365,0)
+BETWEEN 26AND 30 THEN '26-30'
+WHEN IF(birthday IS NOTNULL, DATEDIFF('${TARGET_DT}', birthday)/365,0)
+BETWEEN 31AND 40 THEN '31-40'
+WHEN IF(birthday IS NOTNULL, DATEDIFF('${TARGET_DT}', birthday)/365,0)
+BETWEEN 41AND 50 THEN '41-50'
+WHEN IF(birthday IS NOTNULL, DATEDIFF('${TARGET_DT}', birthday)/365,0)>
+50THEN '50+'
+ELSE '未知'
+END ASage_group,--学历编码转描述
+CASE education
+WHEN 1THEN '高中及以下'
+WHEN 2THEN '大专'
+WHEN 3THEN '本科'
+WHEN 4THEN '硕士'
+WHEN 5THEN '博士'
+ELSE '未知'
+END ASeducation_desc,--婚姻状况编码转描述
+CASE marital_status
+WHEN 1THEN '未婚'
+WHEN 2THEN '已婚'
+WHEN 3THEN '离异'
+ELSE '未知'
+END ASmarital_desc,
+TRIM(province) AS province,
+TRIM(city) AS city,--省份→区域映射
+CASE
+WHEN province IN ('上海市','江苏省','浙江省','安徽省','福建省','江西省','山东
+省')THEN '华东'
+WHEN province IN ('广东省','广西壮族自治区','海南省')THEN '华南'
+WHEN province IN ('北京市','天津市','河北省','山西省','内蒙古自治区') THEN '华
+北'
+WHEN province IN ('河南省','湖北省','湖南省')THEN '华中'
+WHEN province IN ('重庆市','四川省','贵州省','云南省','西藏自治区') THEN '西南
+'
+WHEN province IN ('陕西省','甘肃省','青海省','宁夏回族自治区','新疆维吾尔自治区
+')THEN '西北'
+WHEN province IN ('辽宁省','吉林省','黑龙江省')THEN '东北'
+ELSE '其他'
+END ASregion,
+IF(occupation IS NULL OR TRIM(occupation) ='','未知',TRIM(occupation)) AS
+occupation,--收入等级分段
+CASE
+WHEN monthly_income <5000 THEN '低收入'
+WHEN monthly_income <10000 THEN '中等收入'
+WHEN monthly_income <20000 THEN '中高收入'
+WHEN monthly_income >=20000 THEN '高收入'
+ELSE '未知'
+END ASincome_level,--信用等级分段
+CASE
+WHEN credit_score < 550 THEN '差'
+WHEN credit_score < 650 THEN '一般'
+WHEN credit_score < 750 THEN '良好'
+WHEN credit_score < 850 THEN '优秀'
+WHEN credit_score >= 850 THEN '极优'
+ELSE '未知'
+END AScredit_level,
+SUBSTR(register_time, 1, 10) AS register_date,
+SUBSTR(register_time, 1, 7) AS register_month,
+SUBSTR(update_time, 1,10) AS update_date
+FROM ods.ods_user_info
+WHERE dt ='${TARGET_DT}'
+QUALIFY ROW_NUMBER() OVER(PARTITION BY user_id ORDER BYupdate_time DESC)= 1;
