@@ -1,0 +1,28 @@
+CREATEDATABASE IFNOT EXISTS ods;
+USE ods;
+CREATETABLE IF NOT EXISTS ods_user_info (
+id BIGINT COMMENT '用户ID',
+name STRING COMMENT '姓名',
+id_card_no STRING COMMENT '身份证号',
+gender INT COMMENT '性别（1男2女）',
+birthday STRING COMMENT '出生日期',
+mobile STRING COMMENT '手机号',
+education INT COMMENT '学历（1高中2大专3本科4硕士5博士）
+',
+marital_status INT COMMENT '婚姻状况（1未婚2已婚3离异）',
+province STRING COMMENT '省份',
+city STRING COMMENT '城市',
+occupation STRING COMMENT '职业',
+monthly_income DECIMAL(15,2) COMMENT '月收入（元）',
+credit_score INT COMMENT '信用评分（300-950）',
+register_time STRING COMMENT '注册时间',
+update_time STRING COMMENT '更新时间'
+)
+COMMENT '用户信息表（全量覆盖）'
+PARTITIONED BY(dt STRING COMMENT '数据日期分区')
+STOREDAS ORC
+TBLPROPERTIES (
+'orc.compress' = 'SNAPPY',
+'creation.date' ='2026-05-22',
+'owner' ='data_warehouse'
+);
